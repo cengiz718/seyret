@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>İzle TV — Dizi, Film & Canlı TV</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<style>
+:root{
+  --bg:#0d0d0d;--surface:#181818;--surface2:#222;
+  --accent:#e50914;--text:#e8e8e8;--muted:#888;
+  --live:#00c853;--radius:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── HEADER ── */
+header{display:flex;align-items:center;gap:14px;padding:11px 22px;background:linear-gradient(180deg,#000 0%,transparent 100%);position:sticky;top:0;z-index:200;backdrop-filter:blur(8px);border-bottom:1px solid #ffffff12;}
+.logo{font-size:1.65rem;font-weight:900;letter-spacing:-1px;color:var(--accent);text-shadow:0 0 20px #e5091444;flex-shrink:0;}
+.logo span{color:#fff;}
+nav{display:flex;gap:4px;}
+nav button{background:transparent;border:none;color:var(--muted);font-size:.84rem;padding:6px 13px;border-radius:20px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+nav button:hover,nav button.active{background:var(--accent);color:#fff;}
+nav button.live-tab{position:relative;}
+nav button.live-tab::before{content:'';width:7px;height:7px;background:var(--live);border-radius:50%;display:inline-block;margin-right:5px;animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.6;transform:scale(.85);}}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.search-wrap{display:flex;align-items:center;gap:6px;background:#ffffff10;border:1px solid #ffffff18;border-radius:22px;padding:6px 12px;}
+.search-wrap input{background:transparent;border:none;outline:none;color:var(--text);font-size:.85rem;width:170px;}
+.search-wrap input::placeholder{color:var(--muted);}
+.hdr-btn{background:var(--surface);border:1px solid #ffffff18;color:var(--text);font-size:.78rem;padding:6px 12px;border-radius:18px;cursor:pointer;transition:all .18s;white-space:nowrap;}
+.hdr-btn:hover{background:var(--accent);border-color:var(--accent);}
+
+/* ── WELCOME ── */
+#welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:40px;text-align:center;gap:18px;}
+#welcome h1{font-size:2rem;color:var(--accent);}
+#welcome p{color:var(--muted);max-width:500px;line-height:1.6;}
+.step-cards{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+.step-card{background:var(--surface);border:1px solid #ffffff12;border-radius:12px;padding:18px 20px;width:185px;text-align:center;}
+.step-card .si{font-size:1.9rem;margin-bottom:7px;}
+.step-card h3{font-size:.88rem;margin-bottom:5px;}
+.step-card p{font-size:.76rem;color:var(--muted);line-height:1.4;}
+.big-btn{background:var(--accent);border:none;color:#fff;font-size:.97rem;padding:12px 30px;border-radius:26px;cursor:pointer;font-weight:700;transition:all .2s;box-shadow:0 4px 18px #e5091433;}
+.big-btn:hover{background:#ff2830;transform:translateY(-2px);}
+
+/* ── MAIN ── */
+main{flex:1;padding:16px 22px;display:none;}
+main.loaded{display:block;}
+
+/* ── FILTERS ── */
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;}
+.fbtn{background:var(--surface);border:1px solid #ffffff10;color:var(--muted);font-size:.73rem;padding:4px 11px;border-radius:14px;cursor:pointer;transition:all .14s;}
+.fbtn:hover,.fbtn.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+/* ── SECTION ── */
+.sec-title{font-size:.98rem;font-weight:700;color:#fff;margin-bottom:11px;display:flex;align-items:center;gap:8px;}
+.sec-title::after{content:'';flex:1;height:1px;background:#ffffff10;}
+.sec-count{font-size:.7rem;font-weight:400;color:var(--muted);}
+
+/* ── CARD GRID (films/series) ── */
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:13px;margin-bottom:34px;}
+.card{background:var(--surface);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;position:relative;border:1px solid #ffffff0d;}
+.card:hover{transform:translateY(-5px) scale(1.03);box-shadow:0 14px 34px #00000099;border-color:var(--accent);z-index:2;}
+.card-poster{width:100%;aspect-ratio:2/3;object-fit:cover;display:block;background:var(--surface2);}
+.card-ph{width:100%;aspect-ratio:2/3;display:flex;align-items:center;justify-content:center;background:var(--surface2);font-size:2.4rem;color:var(--muted);}
+.card-info{padding:8px 10px;}
+.card-title{font-size:.75rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-meta{font-size:.64rem;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-badge{position:absolute;top:5px;right:5px;font-size:.58rem;padding:2px 5px;border-radius:4px;font-weight:700;letter-spacing:.3px;}
+.card-badge.dub{background:var(--accent);color:#fff;}
+.card-badge.sub{background:#1a6eff;color:#fff;}
+.card-ov{position:absolute;inset:0;background:#00000066;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .18s;}
+.card:hover .card-ov{opacity:1;}
+.play-btn{width:44px;height:44px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;box-shadow:0 4px 14px #e5091466;}
+.ep-badge{position:absolute;bottom:5px;left:5px;background:#00000099;color:#fff;font-size:.58rem;padding:2px 6px;border-radius:4px;backdrop-filter:blur(4px);}
+
+/* ── CHANNEL GRID (live TV) ── */
+.ch-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:34px;}
+.ch-card{background:var(--surface);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform .2s,box-shadow .2s;border:1px solid #ffffff0d;display:flex;flex-direction:column;}
+.ch-card:hover{transform:translateY(-4px);box-shadow:0 12px 30px #00000099;border-color:var(--live);}
+.ch-logo-wrap{background:var(--surface2);display:flex;align-items:center;justify-content:center;height:100px;position:relative;}
+.ch-logo{max-width:80%;max-height:70%;object-fit:contain;}
+.ch-ph{font-size:2.5rem;color:var(--muted);}
+.live-dot{position:absolute;top:7px;right:7px;width:8px;height:8px;background:var(--live);border-radius:50%;box-shadow:0 0 8px var(--live);animation:pulse 1.4s ease-in-out infinite;}
+.ch-info{padding:8px 11px;}
+.ch-name{font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ch-group{font-size:.67rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* ── ADD CHANNEL CARD ── */
+.ch-add-card{background:transparent;border:2px dashed #ffffff20;border-radius:var(--radius);display:flex;flex-direction:column;align-items:center;justify-content:center;height:130px;cursor:pointer;transition:border-color .2s,background .2s;color:var(--muted);font-size:.82rem;gap:8px;}
+.ch-add-card:hover{border-color:var(--accent);background:#e509140d;color:var(--accent);}
+.ch-add-card span:first-child{font-size:1.8rem;}
+
+/* ── PLAYER MODAL ── */
+#playerModal{display:none;position:fixed;inset:0;background:#000000ee;z-index:1000;flex-direction:column;align-items:center;justify-content:center;padding:14px;}
+#playerModal.open{display:flex;}
+.player-wrap{background:var(--surface);border-radius:14px;overflow:hidden;width:100%;max-width:940px;box-shadow:0 28px 70px #000;border:1px solid #ffffff12;}
+.player-header{display:flex;align-items:center;gap:12px;padding:11px 15px;background:var(--surface2);border-bottom:1px solid #ffffff0d;}
+.p-thumb{width:40px;height:60px;object-fit:cover;border-radius:5px;flex-shrink:0;}
+.p-thumb.square{width:52px;height:52px;border-radius:8px;object-fit:contain;background:var(--surface);}
+.p-titles{flex:1;min-width:0;}
+.p-title{font-size:.93rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.p-sub{font-size:.74rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.live-pill{font-size:.65rem;background:var(--live);color:#000;padding:2px 8px;border-radius:10px;font-weight:700;flex-shrink:0;}
+#closeBtn{background:transparent;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;padding:4px 8px;border-radius:5px;transition:all .15s;}
+#closeBtn:hover{background:#ffffff15;color:#fff;}
+#videoEl{width:100%;aspect-ratio:16/9;background:#000;display:block;}
+.ep-panel{max-height:200px;overflow-y:auto;background:#0a0a0a;border-top:1px solid #ffffff0d;}
+.ep-panel::-webkit-scrollbar{width:4px;}
+.ep-panel::-webkit-scrollbar-thumb{background:#333;border-radius:4px;}
+.ep-item{display:flex;align-items:center;gap:9px;padding:8px 13px;cursor:pointer;border-bottom:1px solid #ffffff07;transition:background .13s;}
+.ep-item:hover{background:var(--surface);}
+.ep-item.active{background:#e509141a;border-left:3px solid var(--accent);}
+.ep-num{font-size:.7rem;color:var(--muted);width:32px;flex-shrink:0;}
+.ep-name{font-size:.78rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ep-type{font-size:.6rem;padding:2px 6px;border-radius:8px;flex-shrink:0;}
+.ep-type.dub{background:#e509141a;color:#ff6b6b;border:1px solid #e5091433;}
+.ep-type.sub{background:#1a6eff1a;color:#7ab3ff;border:1px solid #1a6eff33;}
+
+/* ── MODALS (shared) ── */
+.modal-bg{display:none;position:fixed;inset:0;background:#000000cc;z-index:3000;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal-box{background:var(--surface);border-radius:14px;padding:28px;width:400px;max-width:92%;border:1px solid #ffffff14;max-height:90vh;overflow-y:auto;}
+.modal-box h2{margin-bottom:6px;font-size:1.1rem;}
+.modal-box .sub{color:var(--muted);font-size:.82rem;margin-bottom:20px;line-height:1.5;}
+.modal-row{margin-bottom:14px;}
+.modal-row label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:5px;}
+.modal-row input,.modal-row select{width:100%;background:var(--surface2);border:1px solid #ffffff15;color:var(--text);padding:9px 12px;border-radius:8px;font-size:.85rem;outline:none;transition:border-color .15s;}
+.modal-row input:focus,.modal-row select:focus{border-color:var(--accent);}
+.modal-row input::placeholder{color:var(--muted);}
+.modal-btns{display:flex;gap:10px;margin-top:18px;}
+.mbtn{flex:1;padding:10px;border-radius:8px;cursor:pointer;font-size:.85rem;border:none;transition:all .15s;}
+.mbtn.cancel{background:var(--surface2);color:var(--muted);border:1px solid #ffffff12;}
+.mbtn.cancel:hover{color:#fff;}
+.mbtn.primary{background:var(--accent);color:#fff;font-weight:700;}
+.mbtn.primary:hover{background:#ff2830;}
+.mbtn.primary:disabled{opacity:.4;cursor:default;}
+.divider{display:flex;align-items:center;gap:10px;margin:14px 0;color:var(--muted);font-size:.75rem;}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:#ffffff15;}
+
+/* ── FILE LOAD ROWS ── */
+.file-row{display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:10px;padding:11px 14px;cursor:pointer;border:1px solid #ffffff10;transition:border-color .2s;margin-bottom:9px;}
+.file-row:hover{border-color:var(--accent);}
+.file-row .fri{font-size:1.4rem;}
+.file-row .frt{flex:1;}
+.file-row .frt strong{display:block;font-size:.87rem;}
+.file-row .frt span{font-size:.73rem;color:var(--muted);}
+.file-row .frplus{color:var(--muted);font-size:1.2rem;margin-left:auto;}
+.url-row{display:flex;gap:8px;}
+.url-row input{flex:1;background:var(--surface2);border:1px solid #ffffff14;color:var(--text);padding:8px 12px;border-radius:8px;font-size:.82rem;outline:none;}
+.url-row input:focus{border-color:var(--accent);}
+.url-row button{background:var(--accent);border:none;color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:.82rem;white-space:nowrap;}
+.url-row button:hover{background:#ff2830;}
+
+/* ── CHANNEL LIST TABLE (in manage modal) ── */
+.ch-list-table{width:100%;border-collapse:collapse;font-size:.8rem;margin-top:10px;}
+.ch-list-table th{text-align:left;color:var(--muted);font-weight:500;padding:5px 8px;border-bottom:1px solid #ffffff12;}
+.ch-list-table td{padding:7px 8px;border-bottom:1px solid #ffffff08;vertical-align:middle;}
+.ch-list-table tr:hover td{background:#ffffff06;}
+.ch-del{background:transparent;border:none;color:#ff4444;cursor:pointer;font-size:1rem;padding:2px 6px;border-radius:4px;}
+.ch-del:hover{background:#ff44441a;}
+.ch-edit{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:2px 6px;border-radius:4px;}
+.ch-edit:hover{background:#ffffff10;color:#fff;}
+
+/* ── TOAST / PROGRESS ── */
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#1e1e1e;color:#fff;padding:9px 20px;border-radius:22px;font-size:.83rem;z-index:9000;display:none;border:1px solid #ffffff18;box-shadow:0 4px 20px #000;}
+.prog-wrap{position:fixed;bottom:0;left:0;right:0;height:3px;background:#ffffff08;z-index:9999;display:none;}
+.prog-bar{height:100%;background:var(--accent);width:0%;transition:width .3s;}
+#scrollTop{position:fixed;bottom:20px;right:20px;background:var(--accent);color:#fff;border:none;width:38px;height:38px;border-radius:50%;font-size:1rem;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 4px 14px #00000066;z-index:500;}
+#scrollTop.show{display:flex;}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:48px 20px;color:var(--muted);}
+.empty .ei{font-size:2.8rem;margin-bottom:10px;}
+
+/* hidden inputs */
+#fiDizi,#fiFilm,#fiLive{display:none;}
+
+/* ── DROP ZONE ── */
+#dropZone{display:none;position:fixed;inset:0;background:#000000cc;z-index:9500;align-items:center;justify-content:center;}
+#dropZone.show{display:flex;}
+.drop-box{border:3px dashed var(--accent);border-radius:20px;padding:44px 56px;text-align:center;pointer-events:none;}
+.drop-box .di{font-size:3.5rem;margin-bottom:10px;}
+.drop-box h2{font-size:1.2rem;margin-bottom:6px;}
+.drop-box p{color:var(--muted);font-size:.86rem;}
+
+@media(max-width:620px){
+  header{padding:9px 12px;gap:8px;flex-wrap:wrap;}
+  .logo{font-size:1.3rem;}
+  main{padding:12px;}
+  .search-wrap input{width:110px;}
+  .card-grid{grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:9px;}
+  .ch-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">İzle<span>TV</span></div>
+  <nav>
+    <button class="active" onclick="setTab('all')">Tümü</button>
+    <button onclick="setTab('series')">📺 Diziler</button>
+    <button onclick="setTab('films')">🎬 Filmler</button>
+    <button class="live-tab" onclick="setTab('live')">Canlı TV</button>
+  </nav>
+  <div class="hdr-right">
+    <div class="search-wrap">
+      <span>🔍</span>
+      <input id="searchInput" type="text" placeholder="Ara…" oninput="onSearch(this.value)"/>
+    </div>
+    <button class="hdr-btn" onclick="openLoadModal()">📂 Yükle</button>
+    <button class="hdr-btn" onclick="openAddChannel()" id="addChBtn" style="display:none">📡 Kanal Ekle</button>
+  </div>
+</header>
+
+<!-- DROP ZONE -->
+<div id="dropZone">
+  <div class="drop-box">
+    <div class="di">📂</div>
+    <h2>M3U Dosyasını Bırakın</h2>
+    <p>dizi.m3u · film.m3u · kanal.m3u dosyalarını buraya sürükleyin</p>
+  </div>
+</div>
+
+<!-- WELCOME -->
+<div id="welcome">
+  <h1>🎬 İzle TV'ye Hoş Geldiniz</h1>
+  <p>Dizi, film ve canlı TV M3U listelerinizi yükleyerek Netflix tarzı arayüzde izleyin. Dosya, URL veya tek kanal ekleyebilirsiniz.</p>
+  <div class="step-cards">
+    <div class="step-card"><div class="si">📂</div><h3>Dosya Yükle</h3><p>dizi.m3u veya film.m3u seçin</p></div>
+    <div class="step-card"><div class="si">🔗</div><h3>URL ile Yükle</h3><p>M3U liste URL'si yapıştırın</p></div>
+    <div class="step-card"><div class="si">📡</div><h3>Kanal Ekle</h3><p>Canlı TV için tek HLS linki ekleyin</p></div>
+    <div class="step-card"><div class="si">▶️</div><h3>İzle</h3><p>Arayın, filtreleyin, izleyin</p></div>
+  </div>
+  <button class="big-btn" onclick="openLoadModal()">📂 Başlamak için M3U Yükle</button>
+</div>
+
+<!-- MAIN -->
+<main id="mainContent"></main>
+
+<!-- ══ LOAD MODAL ══ -->
+<div class="modal-bg" id="loadModal">
+  <div class="modal-box">
+    <h2>📂 İçerik Yükle</h2>
+    <p class="sub">Dosya seçin, URL girin veya her ikisini yapıştırın. Yükleme sonrası "Uygula" deyin.</p>
+
+    <!-- File rows -->
+    <div class="file-row" onclick="document.getElementById('fiDizi').click()">
+      <span class="fri">📺</span>
+      <div class="frt"><strong>Dizi Listesi</strong><span id="diziSt">Dosya seçilmedi</span></div>
+      <span class="frplus">＋</span>
+    </div>
+    <div class="file-row" onclick="document.getElementById('fiFilm').click()">
+      <span class="fri">🎬</span>
+      <div class="frt"><strong>Film Listesi</strong><span id="filmSt">Dosya seçilmedi</span></div>
+      <span class="frplus">＋</span>
+    </div>
+    <div class="file-row" onclick="document.getElementById('fiLive').click()">
+      <span class="fri">📡</span>
+      <div class="frt"><strong>Canlı TV Listesi</strong><span id="liveSt">Dosya seçilmedi</span></div>
+      <span class="frplus">＋</span>
+    </div>
+
+    <div class="divider">veya URL ile yükle</div>
+
+    <!-- URL loader -->
+    <div class="modal-row">
+      <label>📺 Dizi M3U URL</label>
+      <div class="url-row"><input id="diziUrl" type="url" placeholder="http://…/dizi.m3u"/><button onclick="fetchM3U('diziUrl','series')">Getir</button></div>
+    </div>
+    <div class="modal-row">
+      <label>🎬 Film M3U URL</label>
+      <div class="url-row"><input id="filmUrl" type="url" placeholder="http://…/film.m3u"/><button onclick="fetchM3U('filmUrl','films')">Getir</button></div>
+    </div>
+    <div class="modal-row">
+      <label>📡 Canlı TV M3U URL</label>
+      <div class="url-row"><input id="liveUrl" type="url" placeholder="http://…/channels.m3u"/><button onclick="fetchM3U('liveUrl','live')">Getir</button></div>
+    </div>
+
+    <div class="modal-btns">
+      <button class="mbtn cancel" onclick="closeLoadModal()">İptal</button>
+      <button class="mbtn primary" id="applyBtn" onclick="applyData()" disabled>✔ Uygula ve İzle</button>
+    </div>
+    <p style="font-size:.71rem;color:var(--muted);margin-top:10px;text-align:center;">💡 Sürükle-bırak da desteklenir. Veriler sayfa yenilenene kadar hafızada kalır.</p>
+  </div>
+</div>
+
+<!-- ══ ADD CHANNEL MODAL ══ -->
+<div class="modal-bg" id="addChModal">
+  <div class="modal-box" style="width:420px;">
+    <h2>📡 Canlı TV Kanalı Ekle / Yönet</h2>
+    <p class="sub">Tek bir yayın linki ekleyin (HLS, M3U8, MP4 vb.) veya mevcut kanallarınızı düzenleyin.</p>
+
+    <div class="modal-row">
+      <label>Kanal Adı</label>
+      <input id="chName" type="text" placeholder="örn: TRT 1"/>
+    </div>
+    <div class="modal-row">
+      <label>Yayın URL'si (HLS, M3U8, MP4…)</label>
+      <input id="chUrl" type="url" placeholder="https://…/stream.m3u8"/>
+    </div>
+    <div class="modal-row">
+      <label>Logo URL (isteğe bağlı)</label>
+      <input id="chLogo" type="url" placeholder="https://…/logo.png"/>
+    </div>
+    <div class="modal-row">
+      <label>Grup / Kategori (isteğe bağlı)</label>
+      <input id="chGroup" type="text" placeholder="örn: Haber, Spor, Eğlence…"/>
+    </div>
+    <div class="modal-btns">
+      <button class="mbtn cancel" onclick="closeAddChannel()">İptal</button>
+      <button class="mbtn primary" onclick="saveChannel()">➕ Ekle</button>
+    </div>
+
+    <!-- existing channels -->
+    <div id="chTableWrap" style="margin-top:18px;display:none;">
+      <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px;">Mevcut Kanallar</div>
+      <table class="ch-list-table">
+        <thead><tr><th>Kanal</th><th>Grup</th><th style="width:70px"></th></tr></thead>
+        <tbody id="chTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- PLAYER MODAL -->
+<div id="playerModal">
+  <div class="player-wrap">
+    <div class="player-header">
+      <img id="pThumb" class="p-thumb" src="" alt="" onerror="this.style.display='none'"/>
+      <div class="p-titles">
+        <div class="p-title" id="pTitle"></div>
+        <div class="p-sub" id="pSub"></div>
+      </div>
+      <span class="live-pill" id="livePill" style="display:none">● CANLI</span>
+      <button id="closeBtn" onclick="closePlayer()">✕</button>
+    </div>
+    <video id="videoEl" controls autoplay playsinline></video>
+    <div class="ep-panel" id="epPanel" style="display:none">
+      <div id="epList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- hidden file inputs -->
+<input type="file" id="fiDizi" accept=".m3u,.m3u8" onchange="handleFile(event,'series')"/>
+<input type="file" id="fiFilm" accept=".m3u,.m3u8" onchange="handleFile(event,'films')"/>
+<input type="file" id="fiLive" accept=".m3u,.m3u8" onchange="handleFile(event,'live')"/>
+
+<div id="toast"></div>
+<button id="scrollTop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+<div class="prog-wrap" id="progWrap"><div class="prog-bar" id="progBar"></div></div>
+
+<script>
+/* ═══════════════════════════════
+   STATE
+═══════════════════════════════ */
+let allFilms=[], allShows=[], allChannels=[];
+let pendingF=[], pendingS=[], pendingL=[];
+let tab='all', activeFilter='', searchQ='';
+let hls=null, currentEps=[], currentEpIdx=0;
+let isLivePlayer=false;
+let pendingAny=false; // whether any pending data exists
+
+/* ═══════════════════════════════
+   LOAD FROM LOCALSTORAGE
+═══════════════════════════════ */
+(function loadSaved(){
+  try {
+    const ch = localStorage.getItem('izletv_channels');
+    if (ch) allChannels = JSON.parse(ch);
+  } catch(e) {}
+})();
+
+/* ═══════════════════════════════
+   M3U PARSER
+═══════════════════════════════ */
+function parseM3U(text) {
+  const lines = text.split(/\r?\n/);
+  const items = [];
+  let cur = null;
+  for (const line of lines) {
+    const l = line.trim();
+    if (l.startsWith('#EXTINF:')) {
+      const logo  = (l.match(/tvg-logo="([^"]*)"/)  ||[])[1]||'';
+      const group = (l.match(/group-title="([^"]*)"/)|| [])[1]||'';
+      const name  = (l.match(/,(.+)$/)               ||[])[1]?.trim()||'Bilinmeyen';
+      cur = { logo, group, name, url:'' };
+    } else if (l && !l.startsWith('#') && cur) {
+      cur.url = l; items.push(cur); cur = null;
+    }
+  }
+  return items;
+}
+
+function groupSeries(items) {
+  const map = {};
+  for (const item of items) {
+    const m = item.name.match(/^(.+?)\s*-\s*\d+\.S[\s-]/);
+    const key = m ? m[1].trim() : item.group;
+    if (!map[key]) map[key]={title:key,logo:item.logo,group:item.group,episodes:[]};
+    map[key].episodes.push(item);
+  }
+  return Object.values(map);
+}
+
+function dedupeFilms(films) {
+  const s=new Set(); return films.filter(f=>{if(s.has(f.url))return false;s.add(f.url);return true;});
+}
+
+/* ═══════════════════════════════
+   FILE HANDLING
+═══════════════════════════════ */
+function handleFile(e, type) {
+  const file = e.target.files[0]; if (!file) return;
+  readFile(file, type);
+}
+
+function readFile(file, type) {
+  prog(15);
+  const r = new FileReader();
+  r.onload = e => processText(e.target.result, type, file.name);
+  r.readAsText(file, 'UTF-8');
+}
+
+function processText(text, type, label) {
+  prog(55);
+  if (type==='series') {
+    const items = parseM3U(text);
+    pendingS = groupSeries(items);
+    setStatus('diziSt', `✅ ${pendingS.length} dizi`);
+  } else if (type==='films') {
+    const items = parseM3U(text);
+    pendingF = dedupeFilms(items);
+    setStatus('filmSt', `✅ ${pendingF.length} film`);
+  } else {
+    const items = parseM3U(text);
+    pendingL = items;
+    setStatus('liveSt', `✅ ${pendingL.length} kanal`);
+  }
+  prog(100);
+  pendingAny = pendingF.length||pendingS.length||pendingL.length;
+  const ab = document.getElementById('applyBtn');
+  ab.disabled = !pendingAny; ab.style.opacity = pendingAny?'1':'.4';
+}
+
+function setStatus(id, txt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = txt; el.style.color = '#4caf50';
+}
+
+/* ═══════════════════════════════
+   FETCH M3U FROM URL
+═══════════════════════════════ */
+async function fetchM3U(inputId, type) {
+  const url = document.getElementById(inputId).value.trim();
+  if (!url) { toast('⚠️ URL boş!'); return; }
+  toast('⏳ Yükleniyor…'); prog(20);
+  try {
+    // Try direct fetch first; CORS may block, then try a CORS proxy
+    let text;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP '+res.status);
+      text = await res.text();
+    } catch(e) {
+      // fallback: cors proxy
+      const proxy = 'https://corsproxy.io/?';
+      const res = await fetch(proxy + encodeURIComponent(url));
+      if (!res.ok) throw new Error('Proxy HTTP '+res.status);
+      text = await res.text();
+    }
+    processText(text, type, url);
+    toast(`✅ ${type==='series'?'Dizi':type==='films'?'Film':'Kanal'} listesi alındı`);
+  } catch(e) {
+    prog(0);
+    toast('❌ Yüklenemedi: ' + e.message);
+  }
+}
+
+/* ═══════════════════════════════
+   APPLY DATA
+═══════════════════════════════ */
+function applyData() {
+  if (pendingS.length) allShows  = pendingS;
+  if (pendingF.length) allFilms  = pendingF;
+  if (pendingL.length) {
+    // merge with existing manual channels
+    const manuals = allChannels.filter(c => c._manual);
+    allChannels = [...pendingL.map(ch=>({...ch,_manual:false})), ...manuals];
+  }
+  pendingF=[]; pendingS=[]; pendingL=[]; pendingAny=false;
+  closeLoadModal();
+  document.getElementById('welcome').style.display='none';
+  document.getElementById('mainContent').classList.add('loaded');
+  render();
+  toast(`📺 ${allShows.length} dizi · 🎬 ${allFilms.length} film · 📡 ${allChannels.length} kanal`);
+}
+
+/* ═══════════════════════════════
+   RENDER
+═══════════════════════════════ */
+function render() {
+  const main = document.getElementById('mainContent');
+  const addBtn = document.getElementById('addChBtn');
+  addBtn.style.display = tab==='live' ? 'block' : 'none';
+
+  const q = searchQ.toLowerCase();
+  let html = '';
+
+  // ── LIVE ──
+  if (tab==='live') {
+    let chs = allChannels;
+    if (q) chs = chs.filter(c => c.name.toLowerCase().includes(q) || (c.group||'').toLowerCase().includes(q));
+
+    const groups = [...new Set(chs.map(c=>(c.group||'').split('|')[0].trim()).filter(Boolean))].sort();
+    if (groups.length>1) {
+      html += `<div class="filters">
+        <button class="fbtn ${!activeFilter?'active':''}" onclick="setFilter('')">Tümü</button>
+        ${groups.map(g=>`<button class="fbtn ${activeFilter===g?'active':''}" onclick="setFilter(${JSON.stringify(g)})">${esc(g)}</button>`).join('')}
+      </div>`;
+    }
+    if (activeFilter) chs = chs.filter(c=>(c.group||'').includes(activeFilter));
+
+    html += `<div class="sec-title">📡 Canlı Yayın <span class="sec-count">${chs.length} kanal</span></div>`;
+    html += `<div class="ch-grid">`;
+    // add-card shortcut
+    html += `<div class="ch-add-card" onclick="openAddChannel()"><span>＋</span><span>Kanal Ekle</span></div>`;
+    html += chs.map((c,i)=>chCard(c, allChannels.indexOf(c))).join('');
+    html += `</div>`;
+
+    if (!chs.length) {
+      html = `<div class="empty"><div class="ei">📡</div><p>Henüz kanal yok.</p></div>`;
+      html += `<div style="text-align:center;margin-top:14px;"><button class="big-btn" onclick="openAddChannel()">📡 Kanal Ekle</button></div>`;
+    }
+    main.innerHTML = html; return;
+  }
+
+  // ── FILMS ──
+  if (tab!=='series') {
+    let films = allFilms;
+    if (q) films = films.filter(f=>f.name.toLowerCase().includes(q)||f.group.toLowerCase().includes(q));
+    if (activeFilter) films = films.filter(f=>f.group.includes(activeFilter));
+
+    if (!q && !activeFilter && tab==='all') {
+      const skip=new Set(['Türkçe Dublaj','Türkçe Altyazı','Netflix','Amazon','Apple TV+','Cam','Şarj Bitiren İçerikler','TV film']);
+      const gs=new Set(); films.forEach(f=>f.group.split('|').map(s=>s.trim()).filter(s=>!skip.has(s)).forEach(s=>gs.add(s)));
+      const genres=[...gs].sort();
+      if (genres.length) {
+        html+=`<div class="filters"><button class="fbtn ${!activeFilter?'active':''}" onclick="setFilter('')">Tümü</button>
+          ${genres.map(g=>`<button class="fbtn ${activeFilter===g?'active':''}" onclick="setFilter(${JSON.stringify(g)})">${esc(g)}</button>`).join('')}</div>`;
+      }
+    }
+    if (films.length) {
+      html+=`<div class="sec-title">🎬 Filmler <span class="sec-count">${films.length} içerik</span></div>`;
+      html+=`<div class="card-grid">`+films.map(filmCard).join('')+`</div>`;
+    }
+  }
+
+  // ── SERIES ──
+  if (tab!=='films') {
+    let shows = allShows;
+    if (q) shows = shows.filter(s=>s.title.toLowerCase().includes(q));
+    if (shows.length) {
+      html+=`<div class="sec-title">📺 Diziler <span class="sec-count">${shows.length} dizi</span></div>`;
+      html+=`<div class="card-grid">`+shows.map((s,i)=>showCard(s,i)).join('')+`</div>`;
+    }
+  }
+
+  // ── LIVE TEASER on 'all' ──
+  if (tab==='all' && allChannels.length) {
+    const chs = allChannels.slice(0,8);
+    html+=`<div class="sec-title">📡 Canlı TV <span class="sec-count"><a href="#" onclick="setTab('live');return false" style="color:var(--accent);font-size:.7rem;">Tümünü gör →</a></span></div>`;
+    html+=`<div class="ch-grid">`+chs.map((c,i)=>chCard(c,i)).join('')+`</div>`;
+  }
+
+  if (!html.trim()) html=`<div class="empty"><div class="ei">🎞️</div><p>İçerik bulunamadı.</p></div>`;
+  main.innerHTML = html;
+}
+
+/* ═══════════════════════════════
+   CARD BUILDERS
+═══════════════════════════════ */
+function filmCard(f) {
+  const isDub = f.name.includes('Dublaj');
+  const ym = f.name.match(/\((\d{4})\)/);
+  const clean = f.name.replace(/\s*\[.*?\]/g,'').replace(/\s*\(\d{4}\)/g,'').replace(/\s*-\s*(Dublaj|Altyazı)\s*$/,'').trim();
+  const g1 = f.group.split('|')[0].trim();
+  const d=JSON.stringify;
+  return `<div class="card" onclick='pFilm(${d(f.url)},${d(f.logo)},${d(clean)},${d(g1+(ym?' · '+ym[1]:''))})'>
+    <span class="card-badge ${isDub?'dub':'sub'}">${isDub?'DUB':'ALT'}</span>
+    <div class="card-ov"><div class="play-btn">▶</div></div>
+    ${f.logo?`<img class="card-poster" src="${f.logo}" alt="" loading="lazy" onerror="this.style.display='none'"/>`:`<div class="card-ph">🎬</div>`}
+    <div class="card-info"><div class="card-title">${esc(clean)}</div><div class="card-meta">${ym?ym[1]+' · ':''}${esc(g1)}</div></div>
+  </div>`;
+}
+
+function showCard(s,idx) {
+  const seasons=new Set(s.episodes.map(e=>{const m=e.name.match(/(\d+)\.S/);return m?m[1]:'1';}));
+  return `<div class="card" onclick="openShow(${idx})">
+    <div class="card-ov"><div class="play-btn">▶</div></div>
+    ${s.logo?`<img class="card-poster" src="${s.logo}" alt="" loading="lazy" onerror="this.style.display='none'"/>`:`<div class="card-ph">📺</div>`}
+    <div class="ep-badge">${seasons.size}S · ${s.episodes.length}B</div>
+    <div class="card-info"><div class="card-title">${esc(s.title)}</div><div class="card-meta">Dizi</div></div>
+  </div>`;
+}
+
+function chCard(c, realIdx) {
+  const d=JSON.stringify;
+  return `<div class="ch-card" onclick='pLive(${d(c.url)},${d(c.logo||'')},${d(c.name)},${d((c.group||'').split('|')[0].trim())})'>
+    <div class="ch-logo-wrap">
+      ${c.logo?`<img class="ch-logo" src="${c.logo}" alt="" onerror="this.style.display='none'"/>`:`<div class="ch-ph">📡</div>`}
+      <div class="live-dot"></div>
+    </div>
+    <div class="ch-info"><div class="ch-name">${esc(c.name)}</div><div class="ch-group">${esc((c.group||'').split('|')[0].trim())}</div></div>
+  </div>`;
+}
+
+/* ═══════════════════════════════
+   PLAYER
+═══════════════════════════════ */
+function pFilm(url,logo,title,sub) {
+  isLivePlayer=false;
+  document.getElementById('pTitle').textContent=title;
+  document.getElementById('pSub').textContent=sub;
+  document.getElementById('pThumb').className='p-thumb'; document.getElementById('pThumb').src=logo;
+  document.getElementById('livePill').style.display='none';
+  document.getElementById('epPanel').style.display='none';
+  currentEps=[];
+  openWith(url);
+}
+
+function openShow(idx) {
+  isLivePlayer=false;
+  const s=allShows[idx];
+  document.getElementById('pTitle').textContent=s.title;
+  document.getElementById('pThumb').className='p-thumb'; document.getElementById('pThumb').src=s.logo;
+  document.getElementById('livePill').style.display='none';
+  currentEps=s.episodes; currentEpIdx=0;
+  buildEpList(s.episodes);
+  document.getElementById('epPanel').style.display='block';
+  playEp(0);
+}
+
+function pLive(url,logo,name,group) {
+  isLivePlayer=true;
+  document.getElementById('pTitle').textContent=name;
+  document.getElementById('pSub').textContent=group||'Canlı Yayın';
+  document.getElementById('pThumb').className='p-thumb square'; document.getElementById('pThumb').src=logo;
+  document.getElementById('livePill').style.display='inline-block';
+  document.getElementById('epPanel').style.display='none';
+  currentEps=[];
+  openWith(url);
+}
+
+function buildEpList(eps) {
+  document.getElementById('epList').innerHTML=eps.map((ep,i)=>{
+    const isDub=ep.name.includes('Dublaj');
+    const sm=ep.name.match(/(\d+)\.S/); const em=ep.name.match(/Bölüm\s*(\d+)/i);
+    const lbl=(sm?`S${sm[1]}`:'')+(em?`E${em[1]}`:'') || `${i+1}`;
+    const short=ep.name.replace(/^.+?-\s*\d+\.S[\s-]*/,'').replace(/\s*-\s*(Dublaj|Altyazı)\s*$/,'').trim();
+    return `<div class="ep-item" id="ep${i}" onclick="playEp(${i})">
+      <span class="ep-num">${lbl}</span><span class="ep-name">${esc(short)}</span>
+      <span class="ep-type ${isDub?'dub':'sub'}">${isDub?'Dub':'Alt'}</span>
+    </div>`;
+  }).join('');
+}
+
+function playEp(idx) {
+  currentEpIdx=idx;
+  const ep=currentEps[idx];
+  document.getElementById('pSub').textContent=ep.name;
+  document.querySelectorAll('.ep-item').forEach((el,i)=>el.classList.toggle('active',i===idx));
+  const el=document.getElementById(`ep${idx}`); if(el) el.scrollIntoView({block:'nearest',behavior:'smooth'});
+  openWith(ep.url);
+}
+
+function openWith(url) {
+  document.getElementById('playerModal').classList.add('open');
+  document.body.style.overflow='hidden';
+  loadVideo(url);
+}
+
+function loadVideo(url) {
+  const v=document.getElementById('videoEl');
+  if(hls){hls.destroy();hls=null;} v.src='';
+  if(url.includes('.m3u8')||url.includes('.m3u')||url.includes('/hls/')||url.includes('index.m3u')) {
+    if(Hls.isSupported()){
+      hls=new Hls({enableWorker:true, lowLatencyMode:isLivePlayer});
+      hls.loadSource(url); hls.attachMedia(v);
+      hls.on(Hls.Events.MANIFEST_PARSED,()=>v.play().catch(()=>{}));
+      hls.on(Hls.Events.ERROR,(e,d)=>{if(d.fatal) console.warn('HLS:',d.type,d.details);});
+    } else if(v.canPlayType('application/vnd.apple.mpegurl')){
+      v.src=url; v.play().catch(()=>{});
+    }
+  } else { v.src=url; v.play().catch(()=>{}); }
+}
+
+function closePlayer() {
+  document.getElementById('playerModal').classList.remove('open');
+  document.body.style.overflow='';
+  const v=document.getElementById('videoEl'); v.pause();
+  if(hls){hls.destroy();hls=null;} v.src='';
+}
+
+/* keyboard */
+document.addEventListener('keydown',e=>{
+  const open=document.getElementById('playerModal').classList.contains('open');
+  if(e.key==='Escape'){
+    if(open) closePlayer();
+    else { closeLoadModal(); closeAddChannel(); }
+  }
+  if(!open||!currentEps.length) return;
+  if(e.key==='ArrowRight'&&currentEpIdx<currentEps.length-1) playEp(currentEpIdx+1);
+  if(e.key==='ArrowLeft'&&currentEpIdx>0) playEp(currentEpIdx-1);
+});
+document.getElementById('playerModal').addEventListener('click',function(e){if(e.target===this)closePlayer();});
+
+/* ═══════════════════════════════
+   ADD / MANAGE CHANNELS
+═══════════════════════════════ */
+function openAddChannel() {
+  document.getElementById('addChModal').classList.add('open');
+  refreshChTable();
+}
+function closeAddChannel() { document.getElementById('addChModal').classList.remove('open'); }
+
+function saveChannel() {
+  const name  = document.getElementById('chName').value.trim();
+  const url   = document.getElementById('chUrl').value.trim();
+  const logo  = document.getElementById('chLogo').value.trim();
+  const group = document.getElementById('chGroup').value.trim();
+  if(!name){toast('⚠️ Kanal adı gerekli');return;}
+  if(!url){toast('⚠️ URL gerekli');return;}
+  const ch = {name, url, logo, group, _manual:true};
+  allChannels.push(ch);
+  saveChannels();
+  // clear inputs
+  ['chName','chUrl','chLogo','chGroup'].forEach(id=>document.getElementById(id).value='');
+  refreshChTable();
+  toast(`✅ "${name}" eklendi`);
+  if(!document.getElementById('mainContent').classList.contains('loaded')){
+    document.getElementById('welcome').style.display='none';
+    document.getElementById('mainContent').classList.add('loaded');
+  }
+  if(tab==='live'||tab==='all') render();
+}
+
+function deleteChannel(idx) {
+  const name = allChannels[idx].name;
+  allChannels.splice(idx,1);
+  saveChannels();
+  refreshChTable();
+  toast(`🗑️ "${name}" silindi`);
+  if(tab==='live'||tab==='all') render();
+}
+
+function refreshChTable() {
+  const wrap = document.getElementById('chTableWrap');
+  const tbody = document.getElementById('chTableBody');
+  if(!allChannels.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  tbody.innerHTML = allChannels.map((c,i)=>`
+    <tr>
+      <td>${c.logo?`<img src="${c.logo}" style="width:22px;height:22px;object-fit:contain;vertical-align:middle;margin-right:6px;" onerror="this.style.display='none'"/>`:''}${esc(c.name)}</td>
+      <td style="color:var(--muted)">${esc((c.group||'').split('|')[0].trim()||'—')}</td>
+      <td>
+        <button class="ch-edit" onclick='pLive(${JSON.stringify(c.url)},${JSON.stringify(c.logo||"")},${JSON.stringify(c.name)},${JSON.stringify((c.group||"").split("|")[0].trim())})' title="İzle">▶</button>
+        <button class="ch-del" onclick="deleteChannel(${i})" title="Sil">✕</button>
+      </td>
+    </tr>`).join('');
+}
+
+function saveChannels() {
+  try { localStorage.setItem('izletv_channels', JSON.stringify(allChannels)); } catch(e) {}
+}
+
+/* ═══════════════════════════════
+   LOAD MODAL
+═══════════════════════════════ */
+function openLoadModal() { document.getElementById('loadModal').classList.add('open'); }
+function closeLoadModal() { document.getElementById('loadModal').classList.remove('open'); }
+document.getElementById('loadModal').addEventListener('click',function(e){if(e.target===this)closeLoadModal();});
+document.getElementById('addChModal').addEventListener('click',function(e){if(e.target===this)closeAddChannel();});
+
+/* ═══════════════════════════════
+   DRAG & DROP
+═══════════════════════════════ */
+const dropZone=document.getElementById('dropZone');
+document.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('show');});
+document.addEventListener('dragleave',e=>{if(!e.relatedTarget)dropZone.classList.remove('show');});
+document.addEventListener('drop',e=>{
+  e.preventDefault(); dropZone.classList.remove('show');
+  const files=[...e.dataTransfer.files];
+  for(const f of files){
+    const n=f.name.toLowerCase();
+    if(n.includes('dizi')||n.includes('series')) readFile(f,'series');
+    else if(n.includes('film')||n.includes('movie')) readFile(f,'films');
+    else readFile(f,'live');
+  }
+  if(files.length) openLoadModal();
+});
+
+/* ═══════════════════════════════
+   TAB / FILTER / SEARCH
+═══════════════════════════════ */
+function setTab(t) {
+  tab=t; activeFilter=''; searchQ='';
+  document.getElementById('searchInput').value='';
+  document.querySelectorAll('nav button').forEach((b,i)=>b.classList.toggle('active',['all','series','films','live'][i]===t));
+  render();
+}
+function setFilter(f){ activeFilter=f; render(); }
+let st; function onSearch(v){ searchQ=v; clearTimeout(st); st=setTimeout(render,200); }
+
+/* ═══════════════════════════════
+   UTILS
+═══════════════════════════════ */
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function toast(msg,dur=3200){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',dur);}
+function prog(pct){const w=document.getElementById('progWrap'),b=document.getElementById('progBar');w.style.display='block';b.style.width=pct+'%';if(pct>=100)setTimeout(()=>{w.style.display='none';b.style.width='0';},700);}
+window.addEventListener('scroll',()=>document.getElementById('scrollTop').classList.toggle('show',scrollY>300));
+
+/* ═══════════════════════════════
+   INIT — show live channels if any saved
+═══════════════════════════════ */
+if(allChannels.length){
+  document.getElementById('welcome').style.display='none';
+  document.getElementById('mainContent').classList.add('loaded');
+  render();
+}
+</script>
+</body>
+</html>
